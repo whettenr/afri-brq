@@ -1,6 +1,9 @@
 # Byte-compiled / optimized / DLL files
 results/
 slurm/
+*musan/
+csvs_jz/
+
 quantization_framework/embeddings
 quantization_framework/targets
 __pycache__/

@@ -67,7 +67,7 @@ output_neurons: 5000
 attention_type: RoPEMHA
 encoder_module: conformer
 dnn_activation: !new:torch.nn.LeakyReLU
-dnn_neurons: 1280
+dnn_neurons: 1024
 dnn_dropout: 0.15
 freeze_bestrq: False
 

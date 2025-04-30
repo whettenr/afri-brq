@@ -13,10 +13,27 @@
 
 conda activate aa
 cd /users/rwhetten/african_brq
+train=/users/rwhetten/african_brq/fine_tune/train_with_bestrq_1layer.py
+hparams=/users/rwhetten/african_brq/fine_tune/train_sb_BEST-RQ_1layer.yaml
+output_folder=results/test_continual_pretraining_1Layer
+pt_model_path=/users/rwhetten/african_brq/results/continual_pretrainin_fongbe/save/CKPT+2025-04-19+16-16-47+00
+
+python $train $hparams --pt_model_path $pt_model_path --output_folder $output_folder \
+    --pt_model_output_dim 1024 \
+    --num_encoder_layers 24 \
+    --d_ffn 4096 \
+    --attention_type RelPosMHAXL \
+    --batch_size 2 \
+    --test_batch_size 3 \
+    --num_workers 2 \
+    --number_of_epochs 10
+
+conda activate aa
+cd /users/rwhetten/african_brq
 train=/users/rwhetten/african_brq/fine_tune/train_with_bestrq.py
 hparams=/users/rwhetten/african_brq/fine_tune/train_sb_BEST-RQ.yaml
-output_folder=results/test_continual_pretraining_1Layer
-pt_model_path=/users/rwhetten/african_brq/results/continual_pretrainin_fongbe/save/CKPT+2025-04-19+14-35-28+00
+output_folder=results/test_continual_pretraining_5k
+pt_model_path=/users/rwhetten/african_brq/results/continual_pretrainin_fongbe/save/CKPT+2025-04-19+16-16-47+00
 
 python $train $hparams --pt_model_path $pt_model_path --output_folder $output_folder \
     --pt_model_output_dim 1024 \
@@ -26,4 +43,6 @@ python $train $hparams --pt_model_path $pt_model_path --output_folder $output_fo
     --batch_size 2 \
     --test_batch_size 3 \
     --grad_accumulation_factor 3 \
-    --num_workers 2
+    --num_workers 2 \
+    --number_of_epochs 10
+

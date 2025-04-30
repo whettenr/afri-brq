@@ -1,0 +1,293 @@
+###########################################################################
+
+# Seed needs to be set at top of yaml, before objects with parameters are made
+seed: 1337 #7777
+__set_seed: !apply:speechbrain.utils.seed_everything [!ref <seed>]
+debug: False
+device: cuda
+exp_name: !ref brq_NLLB_aug
+output_folder: !ref results/translation/<exp_name>/<seed>
+save_folder: !ref <output_folder>/save
+train_log: !ref <output_folder>/train_log.txt
+wer_file: !ref <output_folder>/wer.txt
+bleu_file: !ref <output_folder>/bleu.txt
+
+root_data_folder: /users/rwhetten/african_brq/translation/csvs 
+# data folder is the place where the json files will be stored prior to training
+data_folder: !ref <root_data_folder>/split
+lang: "fr" #for the BLEU score detokenization
+target_lang: "fra_Latn" # for mbart initialization
+
+train_set: !ref <root_data_folder>/train_sub.csv
+valid_set: !ref <root_data_folder>/valid_sub.csv
+test_set: !ref <root_data_folder>/test_sub.csv
+skip_prep: True
+
+
+# # URL for the HuggingFace model we want to load (BASE here)
+# hubert_hub: utter-project/mHuBERT-147
+# hubert_folder: !ref <save_folder>/hubert
+
+# # hubert 2.0 specific parameters
+hubert_frozen: False
+brq_path: !PLACEHOLDER
+
+
+
+####################### Training Parameters ####################################
+number_of_epochs: 50
+lr: 0.001
+lr_hubert: 0.0001
+lr_nllb: 0.0001
+batch_size: 2
+test_batch_size: 2
+grad_accumulation_factor: 6
+valid_search_interval: 4
+loss_reduction: batchmean
+ckpt_interval_minutes: 15 # save checkpoint every N min
+
+precision: fp16 # bf16, fp16 or fp32
+
+
+# Data sorting parameters: sorting_debug_duration replaces sorting_min_duration in debug mode
+sorting: ascending
+avoid_if_longer_than: 15.0
+
+epoch_counter: !new:speechbrain.utils.epoch_loop.EpochCounter
+    limit: !ref <number_of_epochs>
+
+dataloader_options:
+    batch_size: !ref <batch_size>
+    num_workers: 4
+
+test_dataloader_options:
+    batch_size: !ref <test_batch_size>
+    num_workers: 4
+
+# Feature parameters
+features_dim: 576 # base output dimension, for large replace by 1024
+
+#projection
+dnn_activate: !name:torch.nn.GELU
+enc_dnn_layers: 1
+enc_dnn_neurons: 1024
+
+
+# Outputs
+label_smoothing: 0.1
+pad_index: 1      # pad_index defined by nllb model
+bos_index: 256057 # fr_XX bos_index defined by nllb model
+eos_index: 2
+
+
+# Decoding parameters
+# Be sure that the bos and eos index match with the BPEs ones
+min_decode_ratio: 0.0
+max_decode_ratio: 0.25
+valid_beam_size: 5
+
+
+# BRQ model parameters
+# Transformer
+d_model: 576
+nhead: 8 # table 1 https://arxiv.org/pdf/2010.10504.pdf
+num_encoder_layers: 12 # section 4.1.1
+num_decoder_layers: 0
+d_ffn: 2048
+transformer_dropout: 0.1
+activation: !name:torch.nn.GELU
+output_neurons: 5000
+attention_type: RoPEMHA
+encoder_module: conformer
+freeze_bestrq: False
+
+# FBanks
+sample_rate: 16000
+n_fft: 400
+n_mels: 80
+
+############################## models ################################
+#hubert model
+
+compute_features: !new:speechbrain.lobes.features.Fbank
+   sample_rate: !ref <sample_rate>
+   n_fft: !ref <n_fft>
+   n_mels: !ref <n_mels>
+
+normalize: !new:speechbrain.processing.features.InputNormalization
+    norm_type: sentence
+
+CNN: !new:speechbrain.lobes.models.convolution.ConvolutionFrontEnd
+   input_shape: (8, 10, 80)
+   num_blocks: 2
+   num_layers_per_block: 1
+   out_channels: (128, 32)
+   kernel_sizes: (5, 5)
+   strides: (2, 2)
+   residuals: (False, False)
+
+Transformer: !new:speechbrain.lobes.models.transformer.TransformerASR.TransformerASR # yamllint disable-line rule:line-length
+   input_size: 640
+   tgt_vocab: !ref <output_neurons>
+   d_model: !ref <d_model>
+   nhead: !ref <nhead>
+   num_encoder_layers: !ref <num_encoder_layers>
+   num_decoder_layers: !ref <num_decoder_layers>
+   d_ffn: !ref <d_ffn>
+   dropout: !ref <transformer_dropout>
+   activation: !ref <activation>
+   conformer_activation: !ref <activation>
+   encoder_module: !ref <encoder_module>
+   attention_type: !ref <attention_type>
+   normalize_before: True
+   causal: False
+
+wrapper: !new:speechbrain.lobes.models.transformer.TransformerASR.EncoderWrapper
+   transformer: !ref <Transformer>
+
+
+brq: !new:torch.nn.ModuleList
+   - [!ref <CNN>, !ref <wrapper>]
+
+
+#linear projection
+enc: !new:speechbrain.lobes.models.VanillaNN.VanillaNN
+    input_shape: [null, null, !ref <features_dim>]
+    activation: !ref <dnn_activate>
+    dnn_blocks: !ref <enc_dnn_layers>
+    dnn_neurons: !ref <enc_dnn_neurons>
+
+# Time drop: randomly drops a number of temporal chunks.
+drop_chunk: !new:speechbrain.augment.time_domain.DropChunk
+    drop_length_low: 1000
+    drop_length_high: 2000
+    drop_count_low: 1
+    drop_count_high: 5
+
+# Frequency drop: randomly drops a number of frequency bands to zero.
+drop_freq: !new:speechbrain.augment.time_domain.DropFreq
+    drop_freq_low: 0
+    drop_freq_high: 1
+    drop_freq_count_low: 1
+    drop_freq_count_high: 3
+    drop_freq_width: 0.05
+
+# Speed perturbation
+speed_perturb: !new:speechbrain.augment.time_domain.SpeedPerturb
+    orig_freq: !ref <sample_rate>
+    speeds: [95, 100, 105]
+
+Augmenter: Combines previously defined augmentations to perform data augmentation
+wav_augment: !new:speechbrain.augment.augmenter.Augmenter
+    concat_original: True
+    min_augmentations: 4
+    max_augmentations: 4
+    augment_prob: 1.0
+    augmentations: [
+        !ref <speed_perturb>,
+        !ref <drop_freq>,
+        !ref <drop_chunk>]
+
+#nllb
+nllb_path: facebook/nllb-200-1.3B
+nllb_frozen: False
+vocab_size: 256206
+NLLB: !new:speechbrain.lobes.models.huggingface_transformers.nllb.NLLB
+    source: !ref <nllb_path>
+    freeze: !ref <nllb_frozen>
+    save_path: !ref <save_folder>/nllb_checkpoint
+    target_lang: !ref <target_lang>
+
+log_softmax: !new:speechbrain.nnet.activations.Softmax
+    apply_log: True
+
+modules:
+    normalize: !ref <normalize>
+    brq: !ref <brq>
+    enc: !ref <enc>
+    NLLB: !ref <NLLB>
+
+model: !new:torch.nn.ModuleList
+    - [!ref <enc>]
+
+adam_opt_class: !name:torch.optim.Adadelta
+    lr: !ref <lr>
+    rho: 0.95
+    eps: 1.e-8
+
+hubert_opt_class: !name:torch.optim.Adam
+    lr: !ref <lr_hubert>
+
+nllb_opt_class: !name:torch.optim.Adam
+    lr: !ref <lr_nllb>
+
+seq_cost: !name:speechbrain.nnet.losses.nll_loss
+    label_smoothing: !ref <label_smoothing>
+    reduction: !ref <loss_reduction>
+
+lr_annealing_adam: !new:speechbrain.nnet.schedulers.NewBobScheduler
+    initial_value: !ref <lr>
+    improvement_threshold: 0.0025
+    annealing_factor: 0.5
+    patient: 2
+
+warmup: 8000
+hold: 32000
+cooldown: 40000
+optimizer_step_limit: 800000
+
+lr_annealing_hubert: !new:speechbrain.nnet.schedulers.TriStageLRSchedule
+    lr: !ref <lr_hubert>
+    warmup_steps: !ref <warmup>
+    hold_steps: !ref <hold>
+    decay_steps: !ref <cooldown>
+    total_steps: !ref <optimizer_step_limit>
+
+lr_annealing_nllb: !new:speechbrain.nnet.schedulers.TriStageLRSchedule
+    lr: !ref <lr_nllb>
+    warmup_steps: !ref <warmup>
+    hold_steps: !ref <hold>
+    decay_steps: !ref <cooldown>
+    total_steps: !ref <optimizer_step_limit>
+
+
+checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
+    checkpoints_dir: !ref <save_folder>
+    recoverables:
+        normalize: !ref <normalize>
+        brq: !ref <brq>
+        model: !ref <model>
+        NLLB: !ref <NLLB>
+        lr_annealing_hubert: !ref <lr_annealing_hubert>
+        lr_annealing_nllb: !ref <lr_annealing_nllb>
+        counter: !ref <epoch_counter>
+
+
+pretrainer: !new:speechbrain.utils.parameter_transfer.Pretrainer
+   collect_in: !ref <save_folder>
+   loadables:
+      brq: !ref <brq>
+      normalize: !ref <normalize>
+
+   paths:
+      brq: !ref <brq_path>/model.ckpt
+      normalize: !ref <brq_path>/normalizer.ckpt
+
+
+valid_search: !new:speechbrain.decoders.S2SHFTextBasedBeamSearcher
+    modules: [!ref <NLLB>, null, null]
+    vocab_size: !ref <vocab_size>
+    bos_index: !ref <bos_index>
+    eos_index: !ref <eos_index>
+    min_decode_ratio: !ref <min_decode_ratio>
+    max_decode_ratio: !ref <max_decode_ratio>
+    beam_size: !ref <valid_beam_size>
+    using_eos_threshold: True
+    length_normalization: True
+
+train_logger: !new:speechbrain.utils.train_logger.FileTrainLogger
+    save_file: !ref <train_log>
+
+bleu_computer: !name:speechbrain.utils.bleu.BLEUStats
+
+acc_computer: !name:speechbrain.utils.Accuracy.AccuracyStats

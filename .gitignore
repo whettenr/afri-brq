@@ -1,8 +1,12 @@
 # Byte-compiled / optimized / DLL files
 results/
 slurm/
-*musan/
+dataaug/MUSAN/
+dataaug/rir/
 csvs_jz/
+csvs/
+store/
+*joblib
 
 quantization_framework/embeddings
 quantization_framework/targets

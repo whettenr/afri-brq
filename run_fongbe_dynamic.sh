@@ -25,12 +25,12 @@ python -m torch.distributed.run --nproc_per_node=2 --rdzv_backend c10d --rdzv-en
     --skip_prep true --lr $lr --log_interval 500 --number_of_epochs 30
 
 
-lr=0.0004
-output_folder=results/fongbe_lr_dynamic_${lr}
+# lr=0.0004
+# output_folder=results/fongbe_lr_dynamic_${lr}
 
-python -m torch.distributed.run --nproc_per_node=2 --rdzv_backend c10d --rdzv-endpoint=localhost:0 $train $hparams --find_unused_parameters \
-    --data_folder $data_folder  --grad_accumulation_factor 8 --output_folder $output_folder \
-    --skip_prep true --lr $lr --log_interval 500 --number_of_epochs 30
+# python -m torch.distributed.run --nproc_per_node=2 --rdzv_backend c10d --rdzv-endpoint=localhost:0 $train $hparams --find_unused_parameters \
+#     --data_folder $data_folder  --grad_accumulation_factor 8 --output_folder $output_folder \
+#     --skip_prep true --lr $lr --log_interval 500 --number_of_epochs 30
 
 
 lr=0.0016

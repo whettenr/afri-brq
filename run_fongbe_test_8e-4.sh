@@ -22,35 +22,4 @@ output_folder=results/fongbe_lr_${lr}
 
 python -m torch.distributed.run --nproc_per_node=2 --rdzv_backend c10d --rdzv-endpoint=localhost:0 $train $hparams --find_unused_parameters\
     --data_folder $data_folder  --grad_accumulation_factor 8 --output_folder $output_folder \
-    --skip_prep true --lr $lr --log_interval 500 --number_of_epochs 200
-
-
-# lr=0.0004
-# output_folder=results/fongbe_lr_${lr}
-
-# python -m torch.distributed.run --nproc_per_node=2 --rdzv_backend c10d --rdzv-endpoint=localhost:0 $train $hparams --find_unused_parameters \
-#     --data_folder $data_folder  --grad_accumulation_factor 8 --output_folder $output_folder \
-#     --skip_prep true --lr $lr --log_interval 500 --number_of_epochs 30
-
-
-# lr=0.0016
-# output_folder=results/fongbe_lr_${lr}
-
-# python -m torch.distributed.run --nproc_per_node=2 --rdzv_backend c10d --rdzv-endpoint=localhost:0 $train $hparams --find_unused_parameters \
-#     --data_folder $data_folder  --grad_accumulation_factor 8 --output_folder $output_folder \
-#     --skip_prep true --lr $lr --log_interval 500 --number_of_epochs 200
-
-
-
-# conda activate aa
-# cd /users/rwhetten/african_brq
-
-# train=train.py
-# hparams=BEST-RQ.yaml
-# data_folder=/users/fkponou/data/speechbrain/To_Ryan
-# lr=0.0008
-# output_folder=results/fongbe_lr_${lr}
-
-# python -m torch.distributed.run --nproc_per_node=1 --rdzv_backend c10d --rdzv-endpoint=localhost:0 $train $hparams \
-#     --data_folder $data_folder  --grad_accumulation_factor 8 --output_folder $output_folder \
-#     --skip_prep true --lr $lr --log_interval 500 --number_of_epochs 10
+    --skip_prep true --lr $lr --log_interval 500 --number_of_epochs 250

@@ -239,11 +239,11 @@ else:
 
 # go through train data_set
 with torch.inference_mode():
-    # print('in train')
-    # train_save_location = f"{save_embeddings_folder}/"
-    # for b in tqdm(train_loader):
-    #     hidden_states = brain.compute_forward(b)
-    #     save_tensor_slices_npy(hidden_states, b[0], save_embeddings_folder)
+    print('in train')
+    train_save_location = f"{save_embeddings_folder}/"
+    for b in tqdm(train_loader):
+        hidden_states = brain.compute_forward(b)
+        save_tensor_slices_npy(hidden_states, b[0], save_embeddings_folder)
     
     print('in valid')
     valid_save_location = f"{save_embeddings_folder}/valid/"

@@ -121,9 +121,10 @@ Quantizer: !new:speechbrain.nnet.quantisers.RandomProjectionQuantizer
     cb_dim: !ref <cb_dim>
     cb_vocab: !ref <cb_vocab>
 
+lin_dim: !ref <cb_vocab>
 linear: !new:speechbrain.nnet.linear.Linear
     input_size: !ref <d_model>
-    n_neurons: !ref <cb_vocab>
+    n_neurons: !ref <lin_dim>
 
 modules:
     CNN: !ref <CNN>
@@ -226,3 +227,9 @@ wav_augment: !new:speechbrain.augment.augmenter.Augmenter
     #   !ref <speed_perturb>,
       !ref <drop_freq>,
       !ref <drop_chunk>]
+
+reset_lin: False
+reset_lin_dim: 500
+new_linear: !new:speechbrain.nnet.linear.Linear
+    input_size: !ref <d_model>
+    n_neurons: !ref <reset_lin_dim>

@@ -165,6 +165,34 @@ class BestRQBrain(sb.core.Brain):
                 meta={"valid_loss": stage_loss},
             )
 
+    def on_fit_start(self):
+        """Gets called at the beginning of ``fit()``, on multiple processes
+        if ``distributed_count > 0`` and backend is ddp.
+
+        Default implementation compiles the jit modules, initializes
+        optimizers, and loads the latest checkpoint to resume training.
+        """
+        # Run this *after* starting all processes since jit/compiled modules
+        # cannot be pickled.
+        self._compile()
+
+        # Wrap modules with parallel backend after jit
+        self._wrap_distributed()
+
+        # Initialize optimizers after parameters are configured
+        self.init_optimizers()
+
+        # Load latest checkpoint to resume training if interrupted
+        if self.checkpointer is not None:
+            self.checkpointer.recover_if_possible()
+        
+        if self.hparams.reset_lin:
+            print(f"RESETTING LINEAR TO: {self.hparams.reset_lin_dim}")
+            self.modules.linear = self.hparams.new_linear.to(device=self.device)
+            self.init_optimizers()
+
+            if self.checkpointer is not None:
+                    self.checkpointer.add_recoverable("linear", self.modules.linear)
 
 def pad_feats(feats, divis_by):
     """BEST-RQ quantizer stackes frames together. Hence, we need to pad the
@@ -245,7 +273,7 @@ def dataio_prepare(hparams):
             "stop": int(stop),
         })
         yield sig
-        targets = torch.from_numpy(np.load(tgts))
+        targets = torch.from_numpy(np.load(tgts)).long()
         yield targets
 
 

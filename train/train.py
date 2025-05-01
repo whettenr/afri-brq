@@ -18,9 +18,10 @@ from hyperpyyaml import load_hyperpyyaml
 import speechbrain as sb
 from speechbrain.dataio.dataloader import SaveableDataLoader
 from speechbrain.dataio.sampler import DynamicBatchSampler
-from speechbrain.lobes.models.BESTRQ import brq_mask_collate_fn
+from speechbrain.lobes.models.BESTRQ import brq_mask_collate_tgts_fn as brq_mask_collate_fn
 from speechbrain.utils.distributed import run_on_main
 from speechbrain.utils.logger import get_logger
+import numpy as np
 
 logger = get_logger(__name__)
 
@@ -32,44 +33,33 @@ class BestRQBrain(sb.core.Brain):
         target embeddings as well as other metrics of interest.
         """
         # get batch and mask
-        wavs, wav_lens, mask = batch
-        wavs, wav_lens, mask = (
+        wavs, wav_lens, mask, tgts = batch
+        wavs, wav_lens, mask, tgts = (
             wavs.to(self.device),
             wav_lens.to(self.device),
             mask.to(self.device),
+            tgts.to(self.device),
         )
-
         ### augment data
         if stage == sb.Stage.TRAIN:
             if hasattr(self.hparams, "wav_augment"):
-                import numpy as np
-                tensor = wavs.cpu().numpy()
-                np.save('before_aug', tensor)
-                
                 wavs, wav_lens = self.hparams.wav_augment(wavs, wav_lens)
-
-                tensor = wavs.cpu().numpy()
-                np.save('after_aug', tensor)
-                print('augmented')
-                exit(0)
+                # double targets to pair with doubled batch
+                # tgts = torch.cat([tgts, tgts], dim=0)
 
         ### get fbanks and normalize
         feats = self.hparams.compute_features(wavs)
         current_epoch = self.hparams.epoch_counter.current
         feats = self.modules.normalize(feats, wav_lens, epoch=current_epoch)
 
-
         ### pad data to be divisable by 4
         divis_by = self.hparams.pad_to_divisible_by
         feats = pad_feats(feats, divis_by)
-        
 
-        # get targets from quantizer and stack the frames!
+        # get masked targets
         mask_idx = mask[::4] // 4
         B, T, C = feats.shape
-        targets = self.modules.Quantizer(
-            feats.view(B, feats.shape[1] // divis_by, -1)[:,mask_idx,:]
-        )
+        tgts = tgts[:, mask_idx]
 
         # generate random noise
         noise = torch.normal(
@@ -94,7 +84,7 @@ class BestRQBrain(sb.core.Brain):
         logits = logits[:, mask_idx, :]
 
         B, T, C = logits.shape
-        return logits.view(B * T, C), targets.view(B * T)
+        return logits.view(B * T, C), tgts.view(B * T)
 
     def compute_objectives(self, predictions, batch, stage):
         pred, targets = predictions
@@ -182,7 +172,7 @@ class BestRQBrain(sb.core.Brain):
 
             self.checkpointer.save_and_keep_only(
                 end_of_epoch=True,
-                num_to_keep=5,
+                num_to_keep=2,
                 meta={"valid_loss": stage_loss},
             )
 
@@ -257,18 +247,21 @@ def dataio_prepare(hparams):
 
         return (input_lengths // (sr * hop_length / 1000) + 1).to(torch.long)
 
-    @sb.utils.data_pipeline.takes("wav", "start", "stop")
-    @sb.utils.data_pipeline.provides("sig")
-    def audio_pipeline(wav, start, stop):
+    @sb.utils.data_pipeline.takes("wav", "start", "stop", "tgts")
+    @sb.utils.data_pipeline.provides("sig", "targets")
+    def audio_pipeline(wav,  start, stop, tgts):
         sig = sb.dataio.dataio.read_audio({
             "file": wav,
             "start": int(start),
             "stop": int(stop),
         })
-        return sig
+        yield sig
+        targets = torch.from_numpy(np.load(tgts)).long()
+        yield targets
+
 
     sb.dataio.dataset.add_dynamic_item(datasets, audio_pipeline)
-    sb.dataio.dataset.set_output_keys(datasets, ["id", "sig"])
+    sb.dataio.dataset.set_output_keys(datasets, ["id", "sig", "targets"])
 
     # We create the DynamicBatch Sampler
     train_sampler = DynamicBatchSampler(
@@ -334,7 +327,8 @@ def main():
         run_opts=run_opts,
         checkpointer=hparams["checkpointer"],
     )
-    # with torch.autograd.detect_anomaly():
+
+
     brain.fit(
         brain.hparams.epoch_counter,
         train_dataset,

@@ -16,8 +16,8 @@ train_steps_log: !ref <output_folder>/train_steps_log.txt
 # Logging file per epoch
 train_stage_log: !ref <output_folder>/train_stage_log.txt
 
-train_csv: csvs_jz/cappfm.csv
-valid_csv: csvs_jz/valid.csv
+train_csv: store/tgts_cappfm.csv
+valid_csv: store/tgts_valid.csv
 skip_prep: True
 
 avoid_if_longer_than: 60.0
@@ -80,7 +80,7 @@ noise_std: 0.1
 # quantizer (codebook = cb) parameters
 p_input: 320
 cb_dim: 16
-cb_vocab: 8192
+cb_vocab: 2048
 
 
 ############################## Models ################################

@@ -34,6 +34,5 @@ python $run $hparams \
     --save_valid_folder $save_valid_folder \
     --seconds_per_batch 300 \
     --train_num_buckets 70 \
-    --cb_vocab 2048 \
     --skip_train false \
     --skip_valid true

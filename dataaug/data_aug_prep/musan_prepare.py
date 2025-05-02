@@ -28,8 +28,10 @@ def prepare_musan(folder, music_csv, noise_csv, speech_csv, max_noise_len=None):
         than this will be cut into pieces.
     """
 
-    sub_folders = ["music", "noise", "speech"]
-    csv_files = [music_csv, noise_csv, speech_csv]
+    # sub_folders = ["music", "noise", "speech"]
+    # csv_files = [music_csv, noise_csv, speech_csv]
+    sub_folders = ["music"]
+    csv_files = [music_csv]
     logger.info("Musan Data Preparation...")
     for sub_folder, csv_file in zip(sub_folders, csv_files):
         wav_lst = get_all_files(

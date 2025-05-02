@@ -4,10 +4,10 @@ from musan_prepare import prepare_musan
 base_save="/users/rwhetten/african_brq/dataaug"
 
 musan_folder = "/users/rwhetten/african_brq/dataaug/MUSAN"
-music_csv = base_save + "/music.csv"
+music_csv = base_save + "/music_n.csv"
 noise_csv = base_save + "/noise.csv"
 speech_csv = base_save + "/speech.csv"
-example_length = None
+example_length = 20
 
 prepare_musan(
     folder=musan_folder,

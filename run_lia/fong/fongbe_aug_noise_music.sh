@@ -15,11 +15,10 @@ cd /users/rwhetten/african_brq
 train=train/train.py
 hparams=hparams/BEST-RQ-aug-nr.yaml
 
-lr=0.0004
+
+lr=0.0008
 output_folder=results/fon/fongbe_aug_nsm_${lr}
 
 python -m torch.distributed.run --nproc_per_node=2 --rdzv_backend c10d --rdzv-endpoint=localhost:0 $train $hparams --find_unused_parameters \
     --grad_accumulation_factor 12 --output_folder $output_folder \
     --skip_prep true --lr $lr  --number_of_epochs 250 --precision fp16 --enable_add_music True
-
-

@@ -14,7 +14,7 @@ cd /users/rwhetten/african_brq
 train=train/train.py
 hparams=hparams/BEST-RQ-aug.yaml
 
-lr=0.0004
+lr=0.0008
 output_folder=results/eng/eng_aug
 train_csv=store/tgts_train.csv
 valid_csv=store/tgts_dev-clean.csv

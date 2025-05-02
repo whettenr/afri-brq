@@ -15,7 +15,8 @@ cd /users/rwhetten/african_brq
 train=train/train.py
 hparams=hparams/BEST-RQ.yaml
 
-lr=0.0004
+
+lr=0.0008
 output_folder=results/fon/fongbe_noaug_${lr}
 
 python -m torch.distributed.run --nproc_per_node=2 --rdzv_backend c10d --rdzv-endpoint=localhost:0 $train $hparams --find_unused_parameters \

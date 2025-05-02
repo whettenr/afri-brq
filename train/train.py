@@ -172,7 +172,7 @@ class BestRQBrain(sb.core.Brain):
 
             self.checkpointer.save_and_keep_only(
                 end_of_epoch=True,
-                num_to_keep=2,
+                num_to_keep=3,
                 meta={"valid_loss": stage_loss},
             )
 

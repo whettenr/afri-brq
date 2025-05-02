@@ -80,7 +80,7 @@ noise_std: 0.1
 # quantizer (codebook = cb) parameters
 p_input: 320
 cb_dim: 16
-cb_vocab: 2048
+cb_vocab: 8192
 
 
 ############################## Models ################################
